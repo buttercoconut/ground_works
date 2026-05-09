@@ -1,12 +1,14 @@
-"""SQLAlchemy models for Boring domain."""
+"""SQLAlchemy models for Boring.
 
-from datetime import datetime
-from typing import List
+Includes Pydantic schemas for request/response.
+"""
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
 from sqlalchemy.orm import relationship
+from pydantic import BaseModel, Field
+from datetime import date
 
-from ..database import Base
+from backend.main import Base
 
 class Boring(Base):
     __tablename__ = "borings"
@@ -14,55 +16,24 @@ class Boring(Base):
     id = Column(Integer, primary_key=True, index=True)
     site_name = Column(String, nullable=False)
     depth = Column(Float, nullable=False)
-    sample_date = Column(DateTime, default=datetime.utcnow)
+    date_bored = Column(Date, nullable=False)
     notes = Column(String, nullable=True)
 
-    layers = relationship("SoilLayer", back_populates="boring", cascade="all, delete-orphan")
-
-class SoilLayer(Base):
-    __tablename__ = "soil_layers"
-
-    id = Column(Integer, primary_key=True, index=True)
-    boring_id = Column(Integer, ForeignKey("borings.id"), nullable=False)
-    depth_start = Column(Float, nullable=False)
-    depth_end = Column(Float, nullable=False)
-    material = Column(String, nullable=False)
-    density = Column(Float, nullable=True)
-
-    boring = relationship("Boring", back_populates="layers")
+    # Relationship to SoilLayer (not defined here for brevity)
+    soil_layers = relationship("SoilLayer", back_populates="boring")
 
 # Pydantic schemas
-from pydantic import BaseModel, Field
+class BoringBase(BaseModel):
+    site_name: str = Field(..., example="Site A")
+    depth: float = Field(..., example=120.5)
+    date_bored: date = Field(..., example="2023-08-15")
+    notes: str | None = None
 
-class SoilLayerCreate(BaseModel):
-    depth_start: float
-    depth_end: float
-    material: str
-    density: float | None = None
+class BoringCreate(BoringBase):
+    pass
 
-class SoilLayerRead(SoilLayerCreate):
+class BoringRead(BoringBase):
     id: int
 
     class Config:
         orm_mode = True
-
-class BoringCreate(BaseModel):
-    site_name: str
-    depth: float
-    sample_date: datetime | None = None
-    notes: str | None = None
-    layers: List[SoilLayerCreate] | None = None
-
-class BoringRead(BoringCreate):
-    id: int
-    layers: List[SoilLayerRead] | None = None
-
-    class Config:
-        orm_mode = True
-
-class BoringUpdate(BaseModel):
-    site_name: str | None = None
-    depth: float | None = None
-    sample_date: datetime | None = None
-    notes: str | None = None
-    layers: List[SoilLayerCreate] | None = None
